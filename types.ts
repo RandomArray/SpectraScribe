@@ -20,6 +20,8 @@ export interface ChatMessage {
     timestamp: number;
     isFinal?: boolean;
     color?: string;
+    type?: 'text' | 'image';
+    mediaUrl?: string;
 }
 
 export interface VisualizerSettings {

@@ -59,7 +59,14 @@ export const useChat = (username: string, room: string) => {
     };
   }, [username, room]);
 
-  const sendMessage = useCallback((text: string, isFinal: boolean = true, source: 'user' | 'transcription' = 'user', id?: string | number) => {
+const sendMessage = useCallback((
+    text: string,
+    isFinal: boolean = true,
+    source: 'user' | 'transcription' = 'user',
+    id?: string | number,
+    type: 'text' | 'image' = 'text',
+    mediaUrl?: string
+  ) => {
     if (socketRef.current) {
       socketRef.current.emit('send_message', {
          room,
@@ -68,7 +75,9 @@ export const useChat = (username: string, room: string) => {
          source,
          isFinal,
          timestamp: Date.now(),
-         id
+         id,
+         type,
+         mediaUrl
       });
     }
   }, [room, username]);

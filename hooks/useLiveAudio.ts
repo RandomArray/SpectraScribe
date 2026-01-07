@@ -33,7 +33,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
   const sessionRef = useRef<any>(null); // Keep track of the Gemini session promise/object
   const currentTranscriptionRef = useRef<string>('');
   const currentTurnIdRef = useRef<string | null>(null);
-  
+
   // Clean up function
   const cleanup = useCallback(() => {
     if (processorRef.current) {
@@ -74,7 +74,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
     try {
       setError(null);
       setStatus(ConnectionStatus.CONNECTING);
-      
+
       const apiKey = process.env.API_KEY;
       if (!apiKey) {
         throw new Error("API Key not found in environment.");
@@ -96,8 +96,8 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
       gainNodeRef.current = gainNode;
 
       const analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 2048; 
-      analyserNode.smoothingTimeConstant = 0.6; 
+      analyserNode.fftSize = 2048;
+      analyserNode.smoothingTimeConstant = 0.6;
       setAnalyser(analyserNode);
 
       const source = audioCtx.createMediaStreamSource(stream);
@@ -109,7 +109,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
 
       // 5. Connect to Gemini Live API
       const ai = new GoogleGenAI({ apiKey });
-      
+
       const sessionPromise = ai.live.connect({
         model: GEMINI_MODEL,
         callbacks: {
@@ -125,7 +125,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
             processor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               const pcmBlob = createBlob(inputData, 16000);
-              
+
               sessionPromise.then((session) => {
                 session.sendRealtimeInput({ media: pcmBlob });
               });
@@ -134,7 +134,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
             // Connect Gain -> Processor -> Destination
             // We connect gain to processor so the model hears the boosted audio
             gainNode.connect(processor);
-            processor.connect(audioCtx.destination); 
+            processor.connect(audioCtx.destination);
           },
           onmessage: (message: LiveServerMessage) => {
             if (message.serverContent?.inputTranscription) {
@@ -149,7 +149,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
                 setTranscriptions(prev => {
                    const filtered = prev.filter(item => item.isFinal);
                    return [...filtered, {
-                     id: currentTurnIdRef.current!, 
+                     id: currentTurnIdRef.current!,
                      text: currentTranscriptionRef.current,
                      timestamp: Date.now(),
                      isFinal: false,
@@ -163,7 +163,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
                const finalText = currentTranscriptionRef.current;
                // Capture the ID synchronously before resetting the ref
                const turnId = currentTurnIdRef.current || Date.now().toString();
-               
+
                if (finalText.trim()) {
                  setTranscriptions(prev => {
                    const filtered = prev.filter(item => item.isFinal);
@@ -192,7 +192,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          inputAudioTranscription: {}, 
+          inputAudioTranscription: {},
           systemInstruction: "You are a passive listener. You do not need to respond with audio unless directly asked. Your primary role is to listen.",
         }
       });

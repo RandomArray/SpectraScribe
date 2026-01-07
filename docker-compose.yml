@@ -17,5 +17,7 @@ services:
       context: ./server
     ports:
       - "3001:3001"
+    volumes:
+      - ./server/data:/app/data
     restart: always
 

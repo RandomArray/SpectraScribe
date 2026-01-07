@@ -30,6 +30,8 @@ services:
     restart: always
     expose:
       - "3001"
+    volumes:
+      - ./server/data:/app/data
     networks:
       - internal-net
 
