@@ -1,0 +1,7 @@
+{
+  "name": "SpectraScribe",
+  "description": "Real-time audio spectrogram, waterfall visualization, and live speech transcription using Gemini API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
