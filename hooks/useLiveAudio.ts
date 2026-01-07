@@ -161,11 +161,14 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
 
             if (message.serverContent?.turnComplete) {
                const finalText = currentTranscriptionRef.current;
+               // Capture the ID synchronously before resetting the ref
+               const turnId = currentTurnIdRef.current || Date.now().toString();
+               
                if (finalText.trim()) {
                  setTranscriptions(prev => {
                    const filtered = prev.filter(item => item.isFinal);
                    return [...filtered, {
-                     id: currentTurnIdRef.current || Date.now().toString(),
+                     id: turnId,
                      text: finalText,
                      timestamp: Date.now(),
                      isFinal: true,
