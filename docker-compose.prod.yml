@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        GEMINI_API_KEY: ${GEMINI_API_KEY}
+    container_name: spectrascribe-frontend
+    restart: always
+    expose:
+      - "80"
+    networks:
+      - traefik
+      - internal-net
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.spectrascribe.rule=Host(`spectrascribe.z01d.xyz`)"
+      - "traefik.http.routers.spectrascribe.entrypoints=websecure"
+      - "traefik.http.routers.spectrascribe.tls.certresolver=letsencrypt"
+      - "traefik.http.services.spectrascribe.loadbalancer.server.port=80"
+
+  backend:
+    build:
+      context: ./server
+    container_name: spectrascribe-backend
+    restart: always
+    expose:
+      - "3001"
+    networks:
+      - internal-net
+
+networks:
+  traefik:
+    external: true
+  internal-net:
+    driver: bridge
