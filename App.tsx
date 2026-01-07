@@ -68,6 +68,9 @@ function App() {
           sendMessage(lastItem.text, lastItem.isFinal, 'transcription', stableId);
           
           lastTranscriptionRef.current = uniqueKey;
+     }
+  }, [transcriptions, isJoined, sendMessage, username]);
+
   const toggleRecording = () => {
     if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.CONNECTING) {
       stop();
