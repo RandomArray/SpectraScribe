@@ -21,7 +21,7 @@ function App() {
   useEffect(() => {
     const savedUser = localStorage.getItem('spectra_username');
     const savedRoom = localStorage.getItem('spectra_room');
-    
+
     if (savedUser && savedRoom) {
       setUsername(savedUser);
       setRoom(savedRoom);
@@ -69,19 +69,19 @@ function App() {
   useEffect(() => {
      if (!isJoined) return;
      const lastItem = transcriptions[transcriptions.length - 1];
-     
+
      if (lastItem) {
           // If it's a model message, we might handle differently, but assuming user for now.
           if (lastItem.source !== 'user') return;
 
           const uniqueKey = `${lastItem.id}-${lastItem.text}-${lastItem.isFinal}`;
           if (lastTranscriptionRef.current === uniqueKey) return;
-         
+
           // Use the timestamp-based ID from useLiveAudio, but scoped to username to avoid collisions between users
           const stableId = `${username}-${lastItem.id}`;
-          
+
           sendMessage(lastItem.text, lastItem.isFinal, 'transcription', stableId);
-          
+
           lastTranscriptionRef.current = uniqueKey;
      }
   }, [transcriptions, isJoined, sendMessage, username]);
@@ -111,7 +111,7 @@ const handleJoin = (e: React.FormEvent) => {
           localStorage.setItem('spectra_room', tempRoom);
       }
   };
-  
+
   const handleLogout = () => {
       localStorage.removeItem('spectra_username');
       localStorage.removeItem('spectra_room');
@@ -192,7 +192,7 @@ const handleJoin = (e: React.FormEvent) => {
         {/* Controls */}
         <div className="flex items-center gap-4">
            {/* Logout Button */}
-           <button 
+           <button
              onClick={handleLogout}
              className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors mr-2"
              title="Logout"
@@ -251,7 +251,7 @@ const handleJoin = (e: React.FormEvent) => {
         <div className="hidden lg:flex flex-col w-[60%] h-full border-r border-slate-800 bg-slate-950/50">
 
            {/* Spectrogram */}
-           <div className="flex-1 min-h-0 p-4 pb-2 flex flex-col">
+           <div className="h-[30%] min-h-0 p-4 pb-2 flex flex-col">
               <div className="mb-2 flex justify-between items-center px-1">
                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Realtime Spectrum</h2>
               </div>
@@ -261,7 +261,7 @@ const handleJoin = (e: React.FormEvent) => {
            </div>
 
            {/* Waterfall */}
-           <div className="h-1/3 min-h-0 p-4 pt-0 flex flex-col">
+           <div className="flex-1 min-h-0 p-4 pt-0 flex flex-col">
                <div className="mb-2 flex justify-between items-center px-1">
                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">History</h2>
               </div>
