@@ -15,10 +15,25 @@ export const useChat = (username: string, room: string) => {
   useEffect(() => {
     if (!username || !room) return;
 
-    const socket = io(SERVER_URL);
+    const socket = io(SERVER_URL, {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+    });
     socketRef.current = socket;
 
-    socket.emit('join_room', { room, username });
+    // Handle initial connection
+    socket.on('connect', () => {
+        console.log('Connected to socket server');
+        socket.emit('join_room', { room, username });
+    });
+
+    // Handle re-connection (important for mobile/sleep)
+    // When socket reconnects, we MUST re-join the room to get messages
+    socket.on('reconnect', () => {
+         console.log('Reconnected to socket server');
+         socket.emit('join_room', { room, username });
+    });
 
     socket.on('room_history', (history: ChatMessage[]) => {
       setMessages(history);

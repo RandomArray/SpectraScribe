@@ -4,7 +4,7 @@ import { useChat } from './hooks/useChat';
 import Spectrogram from './components/Spectrogram';
 import Waterfall from './components/Waterfall';
 import ChatInterface from './components/ChatInterface';
-import { Play, Square, Activity, Settings2, AlertCircle, Mic, Lock, LogIn } from 'lucide-react';
+import { Play, Square, Activity, Settings2, AlertCircle, Mic, Lock, LogIn, LogOut } from 'lucide-react';
 import { ConnectionStatus } from './types';
 
 function App() {
@@ -16,6 +16,21 @@ function App() {
   // Local temporary state for login form
   const [tempUsername, setTempUsername] = useState('');
   const [tempRoom, setTempRoom] = useState('general');
+
+  // Load saved session
+  useEffect(() => {
+    const savedUser = localStorage.getItem('spectra_username');
+    const savedRoom = localStorage.getItem('spectra_room');
+    
+    if (savedUser && savedRoom) {
+      setUsername(savedUser);
+      setRoom(savedRoom);
+      setIsJoined(true);
+      // Also pre-fill the form state in case they logout
+      setTempUsername(savedUser);
+      setTempRoom(savedRoom);
+    }
+  }, []);
 
   // Hooks
   const {
@@ -86,13 +101,23 @@ function App() {
       setGain(gainValue);
   };
 
-  const handleJoin = (e: React.FormEvent) => {
+const handleJoin = (e: React.FormEvent) => {
       e.preventDefault();
       if (tempUsername.trim() && tempRoom.trim()) {
           setUsername(tempUsername);
           setRoom(tempRoom);
           setIsJoined(true);
+          localStorage.setItem('spectra_username', tempUsername);
+          localStorage.setItem('spectra_room', tempRoom);
       }
+  };
+  
+  const handleLogout = () => {
+      localStorage.removeItem('spectra_username');
+      localStorage.removeItem('spectra_room');
+      setIsJoined(false);
+      setUsername('');
+      // We keep temp values for convenience
   };
 
   // Login Screen
@@ -166,6 +191,15 @@ function App() {
 
         {/* Controls */}
         <div className="flex items-center gap-4">
+           {/* Logout Button */}
+           <button 
+             onClick={handleLogout}
+             className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors mr-2"
+             title="Logout"
+           >
+              <LogOut className="w-4 h-4" />
+           </button>
+
            {/* Sensitivity Slider */}
            <div className="hidden lg:flex flex-col gap-1 w-32">
                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
