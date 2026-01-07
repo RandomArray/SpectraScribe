@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  spectrascribe-frontend:
+    build:
+      context: .
+      args:
+        GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "3000:80"
+    restart: always
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./server
+    ports:
+      - "3001:3001"
+    restart: always
+

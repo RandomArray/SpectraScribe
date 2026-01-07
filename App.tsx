@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLiveAudio } from './hooks/useLiveAudio';
+import { useChat } from './hooks/useChat';
 import Spectrogram from './components/Spectrogram';
 import Waterfall from './components/Waterfall';
-import TranscriptionLog from './components/TranscriptionLog';
-import { Play, Square, Activity, Settings2, AlertCircle, Mic } from 'lucide-react';
+import ChatInterface from './components/ChatInterface';
+import { Play, Square, Activity, Settings2, AlertCircle, Mic, Lock, LogIn } from 'lucide-react';
 import { ConnectionStatus } from './types';
 
 function App() {
+  // Auth State
+  const [username, setUsername] = useState('');
+  const [room, setRoom] = useState('general');
+  const [isJoined, setIsJoined] = useState(false);
+  
+  // Local temporary state for login form
+  const [tempUsername, setTempUsername] = useState('');
+  const [tempRoom, setTempRoom] = useState('general');
+
+  // Hooks
   const { 
     start, 
     stop, 
@@ -17,8 +28,49 @@ function App() {
     setGain
   } = useLiveAudio();
 
+  const { messages, sendMessage } = useChat(isJoined ? username : '', isJoined ? room : '');
+
   const [waterfallDuration, setWaterfallDuration] = useState(60);
-  const [sensitivity, setSensitivity] = useState(20); // 0-100 scale, defaults to 20% which we map to 1.0 gain
+  const [sensitivity, setSensitivity] = useState(20); 
+
+  // Sync Transcriptions to Chat
+  // We use a ref to track the last processed transcription ID to avoid duplicates 
+  // or use the array length. Since useLiveAudio appends, we can just look at new items.
+  // Actually, useChat will manage the history. useLiveAudio emits events.
+  // We need to bridge them:
+  useEffect(() => {
+     if (!isJoined) return;
+
+     // Warning: This simple logic might re-send history if transcriptions is reset.
+     // Better: useLiveAudio provides a callback or we manually track "lastSentIndex".
+     // For now, let's just send the LATEST item if it changes and is new.
+  }, [transcriptions, isJoined]);
+
+  // FIXME: The above bridge is tricky with React state. 
+  // Let's modify useLiveAudio to expose an 'onTranscription' callback OR
+  // we just watch the last item.
+  const lastTranscriptionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+     if (!isJoined) return;
+     const lastItem = transcriptions[transcriptions.length - 1];
+     
+     if (lastItem) {
+         // Only send if it's a new update we haven't handled or it's an update to 'pending'
+         // Pending items have 'pending' ID or we just check content.
+         
+         // Logic: 
+         // If item is pending, emit as pending (update).
+         // If item is final, emit as final.
+         
+         const uniqueKey = `${lastItem.id}-${lastItem.text}`;
+         if (lastTranscriptionRef.current === uniqueKey) return;
+         
+         sendMessage(lastItem.text, lastItem.isFinal, 'transcription');
+         lastTranscriptionRef.current = uniqueKey;
+     }
+  }, [transcriptions, isJoined, sendMessage]);
+
 
   const toggleRecording = () => {
     if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.CONNECTING) {
@@ -31,33 +83,94 @@ function App() {
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = Number(e.target.value);
       setSensitivity(val);
-      // Map 0-100 to Gain 0.0 - 5.0
-      // 20 -> 1.0
       const gainValue = val * 0.05; 
       setGain(gainValue);
   };
 
+  const handleJoin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (tempUsername.trim() && tempRoom.trim()) {
+          setUsername(tempUsername);
+          setRoom(tempRoom);
+          setIsJoined(true);
+      }
+  };
+  
+  // Login Screen
+  if (!isJoined) {
+      return (
+          <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full">
+                  <div className="flex flex-col items-center mb-8">
+                       <div className="p-3 bg-cyan-900/30 rounded-xl border border-cyan-800 mb-4">
+                            <Activity className="w-8 h-8 text-cyan-400" />
+                       </div>
+                       <h1 className="text-2xl font-bold text-white mb-2">SpectraScribe</h1>
+                       <p className="text-slate-400 text-center text-sm">Join a secure room to start communicating.</p>
+                  </div>
+                  
+                  <form onSubmit={handleJoin} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1 ml-1">DISPLAY NAME</label>
+                          <input 
+                            type="text" 
+                            required
+                            value={tempUsername}
+                            onChange={e => setTempUsername(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all placeholder:text-slate-600"
+                            placeholder="e.g. Alice"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1 ml-1">ROOM ID</label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                            <input 
+                                type="text" 
+                                required
+                                value={tempRoom}
+                                onChange={e => setTempRoom(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all placeholder:text-slate-600"
+                                placeholder="general"
+                            />
+                          </div>
+                      </div>
+                      <button 
+                        type="submit" 
+                        className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
+                      >
+                          <LogIn className="w-4 h-4" /> Join Room
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans">
+    <div className="h-screen bg-slate-950 text-slate-200 flex flex-col font-sans overflow-hidden">
       {/* Header */}
-      <header className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between sticky top-0 z-50">
+      <header className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-50 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-cyan-900/30 rounded-lg border border-cyan-800">
-            <Activity className="w-6 h-6 text-cyan-400" />
+          <div className="p-2 bg-cyan-900/30 rounded-lg border border-cyan-800 hidden sm:block">
+            <Activity className="w-5 h-5 text-cyan-400" />
           </div>
           <div>
-             <h1 className="text-xl font-bold tracking-tight text-white">SpectraScribe</h1>
-             <p className="text-xs text-slate-400">Audio Analysis & Live Transcription</p>
+             <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                 SpectraScribe 
+                 <span className="text-[10px] font-normal px-2 py-0.5 bg-slate-800 rounded-full text-slate-400 hidden sm:inline-block">
+                     {room}
+                 </span>
+             </h1>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-6">
-           
+        <div className="flex items-center gap-4">
            {/* Sensitivity Slider */}
-           <div className="hidden md:flex flex-col gap-1 w-48">
-               <div className="flex justify-between text-xs text-slate-400 font-medium">
-                   <span className="flex items-center gap-1"><Mic className="w-3 h-3"/> Sensitivity</span>
+           <div className="hidden lg:flex flex-col gap-1 w-32">
+               <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                   <span className="flex items-center gap-1">Sens</span>
                    <span>{sensitivity}%</span>
                </div>
                <input 
@@ -66,41 +179,31 @@ function App() {
                  max="100" 
                  value={sensitivity} 
                  onChange={handleSensitivityChange}
-                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                 className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
                />
            </div>
 
-           <div className="h-8 w-px bg-slate-800 hidden md:block" />
-
            {error && (
-               <div className="flex items-center gap-2 text-red-400 bg-red-900/20 px-3 py-1.5 rounded-full text-xs border border-red-900/50">
+               <div className="hidden sm:flex items-center gap-2 text-red-400 bg-red-900/20 px-3 py-1.5 rounded-full text-xs border border-red-900/50">
                   <AlertCircle className="w-3 h-3" />
-                  {error}
+                  <span className="max-w-[100px] truncate">{error}</span>
                </div>
            )}
 
-           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border
-              ${status === ConnectionStatus.CONNECTED ? 'bg-green-900/20 text-green-400 border-green-900/50' : 
-                status === ConnectionStatus.CONNECTING ? 'bg-yellow-900/20 text-yellow-400 border-yellow-900/50' :
-                'bg-slate-800 text-slate-400 border-slate-700'}`}>
-              <div className={`w-2 h-2 rounded-full ${status === ConnectionStatus.CONNECTED ? 'animate-pulse bg-green-500' : 'bg-current'}`} />
-              {status === ConnectionStatus.CONNECTED ? 'LIVE' : status.toUpperCase()}
-           </div>
-
            <button 
              onClick={toggleRecording}
-             className={`flex items-center gap-2 px-6 py-2 rounded-lg font-semibold transition-all duration-200
+             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
                ${status === ConnectionStatus.CONNECTED 
                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-900/20' 
                  : 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-900/20'}`}
            >
              {status === ConnectionStatus.CONNECTED ? (
                 <>
-                   <Square className="w-4 h-4 fill-current" /> Stop
+                   <Square className="w-3 h-3 fill-current" /> Stop
                 </>
              ) : (
                 <>
-                   <Play className="w-4 h-4 fill-current" /> Start
+                   <Play className="w-3 h-3 fill-current" /> Listen
                 </>
              )}
            </button>
@@ -108,48 +211,40 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-80px)]">
+      <main className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
         
-        {/* Left Column: Visualizations (8/12) */}
-        <div className="lg:col-span-8 flex flex-col gap-6 min-h-[500px]">
+        {/* Left Column: Visualizations (Desktop) / Hidden on Mobile toggles could be added later */}
+        {/* We make this collapsible or resizeable in future. For now, 60% width on Desktop. */}
+        <div className="hidden lg:flex flex-col w-[60%] h-full border-r border-slate-800 bg-slate-950/50">
            
-           {/* Spectrogram (Top) */}
-           <div className="h-1/3 bg-slate-900 rounded-xl border border-slate-800 p-4 shadow-xl flex flex-col overflow-hidden">
-              <div className="flex justify-between items-center mb-2">
-                 <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Frequency Spectrum</h2>
-                 <span className="text-xs text-slate-600">Scroll to Zoom • Drag to Pan</span>
+           {/* Spectrogram */}
+           <div className="flex-1 min-h-0 p-4 pb-2 flex flex-col">
+              <div className="mb-2 flex justify-between items-center px-1">
+                 <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Realtime Spectrum</h2>
               </div>
-              <div className="flex-1 relative rounded-lg overflow-hidden bg-black border border-slate-800">
+              <div className="flex-1 relative rounded-lg overflow-hidden bg-black border border-slate-900 shadow-inner">
                  <Spectrogram analyser={analyser} />
               </div>
            </div>
 
-           {/* Waterfall (Bottom) */}
-           <div className="h-2/3 bg-slate-900 rounded-xl border border-slate-800 p-4 shadow-xl flex flex-col overflow-hidden">
-               <div className="flex justify-between items-center mb-2">
-                 <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Waterfall History</h2>
-                 <div className="flex items-center gap-2">
-                     <Settings2 className="w-3 h-3 text-slate-600" />
-                     <select 
-                       className="bg-slate-800 border border-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none focus:border-cyan-500"
-                       value={waterfallDuration}
-                       onChange={(e) => setWaterfallDuration(Number(e.target.value))}
-                     >
-                       <option value={30}>30s Window</option>
-                       <option value={60}>60s Window</option>
-                       <option value={120}>2m Window</option>
-                     </select>
-                 </div>
+           {/* Waterfall */}
+           <div className="h-1/3 min-h-0 p-4 pt-0 flex flex-col">
+               <div className="mb-2 flex justify-between items-center px-1">
+                 <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">History</h2>
               </div>
-              <div className="flex-1 relative border border-slate-800 rounded-lg overflow-hidden">
+              <div className="flex-1 relative border border-slate-900 rounded-lg overflow-hidden bg-black shadow-inner">
                  <Waterfall analyser={analyser} durationSeconds={waterfallDuration} />
               </div>
            </div>
         </div>
 
-        {/* Right Column: Transcription (4/12) */}
-        <div className="lg:col-span-4 h-full">
-            <TranscriptionLog items={transcriptions} />
+        {/* Right Column: Chat & Log (Full width on mobile, 40% on Desktop) */}
+        <div className="flex-1 h-full w-full lg:w-[40%] bg-slate-900">
+            <ChatInterface 
+                messages={messages} 
+                onSendMessage={sendMessage} 
+                currentUser={username}
+            />
         </div>
 
       </main>
