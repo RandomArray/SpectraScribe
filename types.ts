@@ -12,6 +12,16 @@ export interface TranscriptionItem {
   source: 'user' | 'model';
 }
 
+export interface ChatMessage {
+    id: string | number;
+    text: string;
+    username: string;
+    source: 'user' | 'transcription' | 'system';
+    timestamp: number;
+    isFinal?: boolean;
+    color?: string;
+}
+
 export interface VisualizerSettings {
   waterfallDuration: number; // in seconds
   sensitivity: number; // gain multiplier
