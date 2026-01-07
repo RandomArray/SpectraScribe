@@ -50,26 +50,35 @@ function App() {
   // Let's modify useLiveAudio to expose an 'onTranscription' callback OR
   // we just watch the last item.
   const lastTranscriptionRef = useRef<string | null>(null);
+  const currentUtteranceId = useRef<string | number | null>(null);
 
   useEffect(() => {
      if (!isJoined) return;
      const lastItem = transcriptions[transcriptions.length - 1];
      
      if (lastItem) {
-         // Only send if it's a new update we haven't handled or it's an update to 'pending'
-         // Pending items have 'pending' ID or we just check content.
+          // If it's a model message, we might handle differently, but assuming user for now.
+          if (lastItem.source !== 'user') return;
+
+          // Generate a stable ID for the current pending utterance if needed
+          if (!currentUtteranceId.current) {
+              currentUtteranceId.current = `${username}-${Date.now()}`;
+          }
+
+          const uniqueKey = `${lastItem.id}-${lastItem.text}-${lastItem.isFinal}`;
+          if (lastTranscriptionRef.current === uniqueKey) return;
          
-         // Logic: 
-         // If item is pending, emit as pending (update).
-         // If item is final, emit as final.
-         
-         const uniqueKey = `${lastItem.id}-${lastItem.text}`;
-         if (lastTranscriptionRef.current === uniqueKey) return;
-         
-         sendMessage(lastItem.text, lastItem.isFinal, 'transcription');
-         lastTranscriptionRef.current = uniqueKey;
+          // Use the stable utterance ID
+          sendMessage(lastItem.text, lastItem.isFinal, 'transcription', currentUtteranceId.current);
+          
+          lastTranscriptionRef.current = uniqueKey;
+
+          // If this was the final message for the turn, reset the ID so the next utterance gets a new one
+          if (lastItem.isFinal) {
+              currentUtteranceId.current = null;
+          }
      }
-  }, [transcriptions, isJoined, sendMessage]);
+  }, [transcriptions, isJoined, sendMessage, username]);
 
 
   const toggleRecording = () => {

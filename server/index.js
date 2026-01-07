@@ -44,11 +44,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', (data) => {
-    // data: { room, text, username, source ('user'|'transcription'), isFinal }
-    const { room, text, username, source, isFinal, timestamp } = data;
+    // data: { room, text, username, source ('user'|'transcription'), isFinal, id }
+    const { room, text, username, source, isFinal, timestamp, id } = data;
     
     const message = {
-        id: Date.now() + Math.random(),
+        id: id || (Date.now() + Math.random()),
         text,
         username,
         source,
@@ -59,10 +59,16 @@ io.on('connection', (socket) => {
 
     if (source === 'transcription' && !isFinal) {
         // Pending transcriptions are volatile, just emit, don't save to history yet
-        socket.to(room).emit('receive_message', message);
+        // But send TO EVERYONE in the room including sender? Or just others?
+        // Usually sender sees their own local state, but here we are syncing via socket.
+        // Let's broadcast to room (including sender if they rely on this for UI).
+        io.to(room).emit('receive_message', message);
     } else {
         // Final messages or chats get saved
         if (!rooms[room]) rooms[room] = [];
+        
+        // If an update to a previously pending message comes in as final, do we need to dedup?
+        // Currently 'pending' messages weren't saved to rooms[room], so we can just push.
         rooms[room].push(message);
         
         // Limit history size

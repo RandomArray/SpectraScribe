@@ -27,12 +27,13 @@ export const useChat = (username: string, room: string) => {
     socket.on('receive_message', (message: ChatMessage) => {
       setMessages((prev) => {
         // If message.id exists, update it (for pending transcriptions becoming final)
-        const exists = prev.find(m => m.id === message.id);
+        const index = prev.findIndex(m => m.id === message.id);
         
-        // Handling volatile pending messages from Gemini
-        // Our logic in index.js emits pending messages.
-        // If we get a message that is same source/user...
-        // Actually, let's keep it simple: just append for now unless we do complex dedupe
+        if (index !== -1) {
+            const newMessages = [...prev];
+            newMessages[index] = message;
+            return newMessages;
+        }
         
         return [...prev, message];
       });
@@ -43,7 +44,7 @@ export const useChat = (username: string, room: string) => {
     };
   }, [username, room]);
 
-  const sendMessage = useCallback((text: string, isFinal: boolean = true, source: 'user' | 'transcription' = 'user') => {
+  const sendMessage = useCallback((text: string, isFinal: boolean = true, source: 'user' | 'transcription' = 'user', id?: string | number) => {
     if (socketRef.current) {
       socketRef.current.emit('send_message', { 
          room, 
@@ -51,7 +52,8 @@ export const useChat = (username: string, room: string) => {
          username, 
          source,
          isFinal,
-         timestamp: Date.now()
+         timestamp: Date.now(),
+         id
       });
     }
   }, [room, username]);
