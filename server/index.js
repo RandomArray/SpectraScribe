@@ -16,7 +16,7 @@ const io = new Server(server, {
 
 // Store rooms and basic history in memory for now
 // In a real app, use Redis or SQL
-const rooms = {}; 
+const rooms = {};
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -27,7 +27,7 @@ io.on('connection', (socket) => {
 
     // Initialize room if not exists
     if (!rooms[room]) {
-      rooms[room] = []; 
+      rooms[room] = [];
     }
 
     // Send history
@@ -46,14 +46,14 @@ io.on('connection', (socket) => {
   socket.on('send_message', (data) => {
     // data: { room, text, username, source ('user'|'transcription'), isFinal, id }
     const { room, text, username, source, isFinal, timestamp, id } = data;
-    
+
     const message = {
         id: id || (Date.now() + Math.random()),
         text,
         username,
         source,
         timestamp: timestamp || Date.now(),
-        isFinal: isFinal !== undefined ? isFinal : true, 
+        isFinal: isFinal !== undefined ? isFinal : true,
         color: getUserColor(username) // Assign color based on username hash
     };
 
@@ -66,11 +66,11 @@ io.on('connection', (socket) => {
     } else {
         // Final messages or chats get saved
         if (!rooms[room]) rooms[room] = [];
-        
+
         // If an update to a previously pending message comes in as final, do we need to dedup?
         // Currently 'pending' messages weren't saved to rooms[room], so we can just push.
         rooms[room].push(message);
-        
+
         // Limit history size
         if (rooms[room].length > 100) rooms[room].shift();
 

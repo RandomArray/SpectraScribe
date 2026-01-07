@@ -28,13 +28,13 @@ export const useChat = (username: string, room: string) => {
       setMessages((prev) => {
         // If message.id exists, update it (for pending transcriptions becoming final)
         const index = prev.findIndex(m => m.id === message.id);
-        
+
         if (index !== -1) {
             const newMessages = [...prev];
             newMessages[index] = message;
             return newMessages;
         }
-        
+
         return [...prev, message];
       });
     });
@@ -46,10 +46,10 @@ export const useChat = (username: string, room: string) => {
 
   const sendMessage = useCallback((text: string, isFinal: boolean = true, source: 'user' | 'transcription' = 'user', id?: string | number) => {
     if (socketRef.current) {
-      socketRef.current.emit('send_message', { 
-         room, 
-         text, 
-         username, 
+      socketRef.current.emit('send_message', {
+         room,
+         text,
+         username,
          source,
          isFinal,
          timestamp: Date.now(),

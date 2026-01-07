@@ -12,18 +12,18 @@ function App() {
   const [username, setUsername] = useState('');
   const [room, setRoom] = useState('general');
   const [isJoined, setIsJoined] = useState(false);
-  
+
   // Local temporary state for login form
   const [tempUsername, setTempUsername] = useState('');
   const [tempRoom, setTempRoom] = useState('general');
 
   // Hooks
-  const { 
-    start, 
-    stop, 
-    status, 
-    analyser, 
-    transcriptions, 
+  const {
+    start,
+    stop,
+    status,
+    analyser,
+    transcriptions,
     error,
     setGain
   } = useLiveAudio();
@@ -31,10 +31,10 @@ function App() {
   const { messages, sendMessage } = useChat(isJoined ? username : '', isJoined ? room : '');
 
   const [waterfallDuration, setWaterfallDuration] = useState(60);
-  const [sensitivity, setSensitivity] = useState(20); 
+  const [sensitivity, setSensitivity] = useState(20);
 
   // Sync Transcriptions to Chat
-  // We use a ref to track the last processed transcription ID to avoid duplicates 
+  // We use a ref to track the last processed transcription ID to avoid duplicates
   // or use the array length. Since useLiveAudio appends, we can just look at new items.
   // Actually, useChat will manage the history. useLiveAudio emits events.
   // We need to bridge them:
@@ -46,11 +46,10 @@ function App() {
      // For now, let's just send the LATEST item if it changes and is new.
   }, [transcriptions, isJoined]);
 
-  // FIXME: The above bridge is tricky with React state. 
+  // FIXME: The above bridge is tricky with React state.
   // Let's modify useLiveAudio to expose an 'onTranscription' callback OR
   // we just watch the last item.
   const lastTranscriptionRef = useRef<string | null>(null);
-  const currentUtteranceId = useRef<string | number | null>(null);
 
   useEffect(() => {
      if (!isJoined) return;
@@ -60,27 +59,15 @@ function App() {
           // If it's a model message, we might handle differently, but assuming user for now.
           if (lastItem.source !== 'user') return;
 
-          // Generate a stable ID for the current pending utterance if needed
-          if (!currentUtteranceId.current) {
-              currentUtteranceId.current = `${username}-${Date.now()}`;
-          }
-
           const uniqueKey = `${lastItem.id}-${lastItem.text}-${lastItem.isFinal}`;
           if (lastTranscriptionRef.current === uniqueKey) return;
          
-          // Use the stable utterance ID
-          sendMessage(lastItem.text, lastItem.isFinal, 'transcription', currentUtteranceId.current);
+          // Use the timestamp-based ID from useLiveAudio, but scoped to username to avoid collisions between users
+          const stableId = `${username}-${lastItem.id}`;
+          
+          sendMessage(lastItem.text, lastItem.isFinal, 'transcription', stableId);
           
           lastTranscriptionRef.current = uniqueKey;
-
-          // If this was the final message for the turn, reset the ID so the next utterance gets a new one
-          if (lastItem.isFinal) {
-              currentUtteranceId.current = null;
-          }
-     }
-  }, [transcriptions, isJoined, sendMessage, username]);
-
-
   const toggleRecording = () => {
     if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.CONNECTING) {
       stop();
@@ -92,7 +79,7 @@ function App() {
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = Number(e.target.value);
       setSensitivity(val);
-      const gainValue = val * 0.05; 
+      const gainValue = val * 0.05;
       setGain(gainValue);
   };
 
@@ -104,7 +91,7 @@ function App() {
           setIsJoined(true);
       }
   };
-  
+
   // Login Screen
   if (!isJoined) {
       return (
@@ -117,12 +104,12 @@ function App() {
                        <h1 className="text-2xl font-bold text-white mb-2">SpectraScribe</h1>
                        <p className="text-slate-400 text-center text-sm">Join a secure room to start communicating.</p>
                   </div>
-                  
+
                   <form onSubmit={handleJoin} className="space-y-4">
                       <div>
                           <label className="block text-xs font-medium text-slate-400 mb-1 ml-1">DISPLAY NAME</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required
                             value={tempUsername}
                             onChange={e => setTempUsername(e.target.value)}
@@ -134,8 +121,8 @@ function App() {
                           <label className="block text-xs font-medium text-slate-400 mb-1 ml-1">ROOM ID</label>
                           <div className="relative">
                             <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 required
                                 value={tempRoom}
                                 onChange={e => setTempRoom(e.target.value)}
@@ -144,8 +131,8 @@ function App() {
                             />
                           </div>
                       </div>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
                       >
                           <LogIn className="w-4 h-4" /> Join Room
@@ -166,7 +153,7 @@ function App() {
           </div>
           <div>
              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                 SpectraScribe 
+                 SpectraScribe
                  <span className="text-[10px] font-normal px-2 py-0.5 bg-slate-800 rounded-full text-slate-400 hidden sm:inline-block">
                      {room}
                  </span>
@@ -182,11 +169,11 @@ function App() {
                    <span className="flex items-center gap-1">Sens</span>
                    <span>{sensitivity}%</span>
                </div>
-               <input 
-                 type="range" 
-                 min="0" 
-                 max="100" 
-                 value={sensitivity} 
+               <input
+                 type="range"
+                 min="0"
+                 max="100"
+                 value={sensitivity}
                  onChange={handleSensitivityChange}
                  className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
                />
@@ -199,11 +186,11 @@ function App() {
                </div>
            )}
 
-           <button 
+           <button
              onClick={toggleRecording}
              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
-               ${status === ConnectionStatus.CONNECTED 
-                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-900/20' 
+               ${status === ConnectionStatus.CONNECTED
+                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-900/20'
                  : 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-900/20'}`}
            >
              {status === ConnectionStatus.CONNECTED ? (
@@ -221,11 +208,11 @@ function App() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
-        
+
         {/* Left Column: Visualizations (Desktop) / Hidden on Mobile toggles could be added later */}
         {/* We make this collapsible or resizeable in future. For now, 60% width on Desktop. */}
         <div className="hidden lg:flex flex-col w-[60%] h-full border-r border-slate-800 bg-slate-950/50">
-           
+
            {/* Spectrogram */}
            <div className="flex-1 min-h-0 p-4 pb-2 flex flex-col">
               <div className="mb-2 flex justify-between items-center px-1">
@@ -249,9 +236,9 @@ function App() {
 
         {/* Right Column: Chat & Log (Full width on mobile, 40% on Desktop) */}
         <div className="flex-1 h-full w-full lg:w-[40%] bg-slate-900">
-            <ChatInterface 
-                messages={messages} 
-                onSendMessage={sendMessage} 
+            <ChatInterface
+                messages={messages}
+                onSendMessage={sendMessage}
                 currentUser={username}
             />
         </div>

@@ -32,6 +32,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
   const gainNodeRef = useRef<GainNode | null>(null);
   const sessionRef = useRef<any>(null); // Keep track of the Gemini session promise/object
   const currentTranscriptionRef = useRef<string>('');
+  const currentTurnIdRef = useRef<string | null>(null);
   
   // Clean up function
   const cleanup = useCallback(() => {
@@ -139,11 +140,16 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
             if (message.serverContent?.inputTranscription) {
               const text = message.serverContent.inputTranscription.text;
               if (text) {
+                // Generate stable ID for this turn if not exists
+                if (!currentTurnIdRef.current) {
+                  currentTurnIdRef.current = Date.now().toString();
+                }
+
                 currentTranscriptionRef.current += text;
                 setTranscriptions(prev => {
                    const filtered = prev.filter(item => item.isFinal);
                    return [...filtered, {
-                     id: 'pending',
+                     id: currentTurnIdRef.current!, 
                      text: currentTranscriptionRef.current,
                      timestamp: Date.now(),
                      isFinal: false,
@@ -159,7 +165,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
                  setTranscriptions(prev => {
                    const filtered = prev.filter(item => item.isFinal);
                    return [...filtered, {
-                     id: Date.now().toString(),
+                     id: currentTurnIdRef.current || Date.now().toString(),
                      text: finalText,
                      timestamp: Date.now(),
                      isFinal: true,
@@ -168,6 +174,7 @@ export const useLiveAudio = (): UseLiveAudioReturn => {
                  });
                }
                currentTranscriptionRef.current = '';
+               currentTurnIdRef.current = null;
             }
           },
           onclose: () => {
